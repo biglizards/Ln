@@ -8,6 +8,7 @@ Currently this implements a superset of L1, as the store may contain any value. 
 is split into different folders for each language.
 
 Contains both an interpreter and a compiler, so long as you accept that Rust is a valid compiler backend.
+(The interpreter is currently out of sync with the compiler, but again that'll be fixed soon).
 See below for an example of how you might run an L1 program to compute the sum of all numbers
 between 1 and 1 billion.
 

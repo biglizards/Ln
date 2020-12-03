@@ -47,24 +47,37 @@ fn handle_op(e1: Expression, input: ParseStream) -> Result<Expression> {
     }
 }
 
-// impl Expression {
-//     fn parse2(input: ParseStream, lhs: Expression, min_precedence: u32) -> Option<Expression> {
-//
-//     }
-// }
+fn apply(lhs: Option<Expression>, rhs: Expression) -> Expression{
+    match lhs {
+        None => rhs,
+        Some(e) => {
+            match rhs {
+                // Expression::Int(_) => {}
+                // Expression::Bool(_) => {}
+                Expression::Add(_, _) => {unimplemented!()}
+                Expression::GE(_, _) => {unimplemented!()}
+                Expression::Seq(_, _) => {unimplemented!()}
+                // Expression::If(_, _, _) => {}
+                // Expression::Deref(_) => {}
+                // Expression::Assign(_, _) => {}
+                // Expression::Skip => {}
+                // Expression::While(_, _) => {}
+                _ => panic!("parser error: called apply with a rhs that shouldn't do that")
+            }
+        }
+    }
+}
 
-impl Parse for Expression {
-    fn parse(input: ParseStream) -> Result<Self> {
+impl Expression {
+    fn parse_primary(input: ParseStream) -> Result<Expression> {
         let lookahead = input.lookahead1();
-
         let e1: Expression = if lookahead.peek(token::Paren) {
             // conjecture: anything inside parens is an expression
             let content;
             let _: token::Paren = parenthesized!(content in input);
-            content.parse()?
+            content.parse()? // just fully consume it, who cares
         } else if lookahead.peek(LitInt) {
             let int: LitInt = input.parse()?;
-            println!("got an int");
             Expression::Int(int)
         } else if lookahead.peek(LitBool) {
             let b: LitBool = input.parse()?;
@@ -73,7 +86,7 @@ impl Parse for Expression {
         } else if lookahead.peek(Token![if]) {
             // oh boy this is gonna be fun to parse
             let _: Token![if] = input.parse()?;
-            let e1: Expression = input.parse()?;
+            let e1: Expression = input.parse()?;  // enclosed, it can be greedy
             let then: Ident = input.parse()?;
             if then.to_string() != "then" { return Err(Error::new(then.span(), "Expected 'then'")) };
             let e2: Expression = input.parse()?;
@@ -85,7 +98,7 @@ impl Parse for Expression {
             let loc: Ident = input.parse()?;
             Expression::Deref(loc)
         } else if lookahead.peek(Token![while]) {
-            let _ : Token![while] = input.parse()?;
+            let _: Token![while] = input.parse()?;
             let e1: Expression = input.parse()?;
             let _: Token![do] = input.parse()?;
             let e2: Expression = input.parse()?;
@@ -100,7 +113,8 @@ impl Parse for Expression {
                 _ => {
                     // it must be an assign (for now at least)
                     let _: (Token![:], Token![=]) = (input.parse()?, input.parse()?);
-                    let e: Expression = input.parse()?;
+                    // let e: Expression = input.parse()?;
+                    let e: Expression = Expression::partial_parse(input, None, 3)?;
                     Expression::Assign(ident, Box::from(e))
                 }
             }
@@ -108,8 +122,75 @@ impl Parse for Expression {
             return Err(lookahead.error())
         };
 
-        // but what if e1 is just the first part of an op or a seq?
-        Ok(handle_op(e1, input)?)
+        Ok(e1)
+    }
+
+    fn partial_parse(input: ParseStream, mut lhs: Option<Expression>, min_precedence: u32) -> Result<Expression> {
+        // ok this is basically the same for a lot of cases
+        // anything that ends in a trailing expression might have it be incomplete
+        // in this parser it's just op and ; though
+        let mut lhs = match lhs {
+            None => Expression::parse_primary(input)?,
+            Some(e) => e
+        };
+
+        let mut lookahead = input.lookahead1();
+        loop {
+            let (op, op_prec): (&str, u32) = if lookahead.peek(Token![+]) && 4 >= min_precedence {
+                input.parse::<Token![+]>();
+                ("+", 4)
+            } else if lookahead.peek(Token![;]) && 2 >= min_precedence {
+                input.parse::<Token![;]>();
+                (";", 2)
+            } else if lookahead.peek(Token![>=]) && 2 >= min_precedence {
+                input.parse::<Token![>=]>();
+                (">=", 3)
+            } else {
+                break
+            };
+
+            let mut rhs = Expression::parse_primary(input)?;
+            lookahead = input.lookahead1();
+            loop {
+                rhs = if lookahead.peek(Token![+]) && 4 >= op_prec {
+                    Expression::partial_parse(input, Some(rhs), 4)?
+                } else if lookahead.peek(Token![;]) && 2 >= op_prec {
+                    Expression::partial_parse(input, Some(rhs), 2)?
+                } else if lookahead.peek(Token![>=]) && 3 >= op_prec {
+                    Expression::partial_parse(input, Some(rhs), 3)?
+                } else {
+                    break
+                };
+                lookahead = input.lookahead1();
+            }
+
+            // apply op to (lhs, rhs)
+            lhs = match op {
+                "+" => {
+                    Expression::Add(Box::from(lhs), Box::from(rhs))
+                },
+                ";" => {
+                    Expression::Seq(Box::from(lhs), Box::from(rhs))
+                },
+                ">=" => {
+                    Expression::GE(Box::from(lhs), Box::from(rhs))
+                }
+                _ => unreachable!()
+            }
+        };
+
+        Ok(lhs)
+    }
+}
+
+
+
+impl Parse for Expression {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Expression::partial_parse(input,
+                                     Some(Expression::parse_primary(input)?),
+                                     0)?
+        )
     }
 }
 

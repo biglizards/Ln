@@ -28,10 +28,10 @@ let l2 = new_loc(1);
 
 // Converts the L1 code into the rust representation, ready for execution.  
 let program = L1!(
-    (l2 := 0);
+    l2 := 0;
     while !l1 >= 1 do
-        (l2 := !l2 + !l1);
-        (l1 := !l1 + -1)
+        l2 := !l2 + !l1;
+        l1 := !l1 + -1
 );
 
 // run the program to completion, and print the "results"
@@ -46,10 +46,7 @@ clock cycle.
 
 \*The type of the above program is
 ```
-Seq<Assign<{integer}, i64>, 
-    While<GE<ct::Deref<i64>, {integer}>, 
-         Seq<Assign<ct::Add<ct::Deref<i64>, ct::Deref<i64>>, i64>, 
-             Assign<ct::Add<ct::Deref<i64>, {integer}>, i64>>>>
+Seq<Assign<{integer}, i64>, While<GE<ct::Deref<i64>, {integer}>, Seq<Assign<ct::Add<ct::Deref<i64>, ct::Deref<i64>>, i64>, Assign<ct::Add<ct::Deref<i64>, {integer}>, i64>>>>
 ```
 In addition to speed, this also uses Rust's type system to verify the correctness of all programs, as `step` is only
 defined for well-typed expressions.

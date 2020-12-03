@@ -141,19 +141,6 @@ fn main() {
     let s: String = "1000000000".into();
 
     let now = Instant::now();
-    let mut l1: i64 = args.get(1).unwrap_or(&s).parse().expect("int pls");
-    let mut l2 = 0;
-    while l1 >= 1 {
-        l2 += l1;
-        l1 -= 1;
-    }
-    println!("{}", l2);
-
-    let time = (now.elapsed().as_nanos() as f64) / 1_000_000_000_f64;
-    println!("{:?}", time);
-
-
-    let now = Instant::now();
     ct::test(
         (&args.get(1).unwrap_or(&s))
             .parse()

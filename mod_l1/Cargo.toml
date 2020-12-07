@@ -1,0 +1,10 @@
+[package]
+name = "mod_l1"
+version = "0.0.1"
+authors = ["biglizards"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+l1_parser = { path = "l1_parser", version = "0.0" }

@@ -10,20 +10,12 @@ is split into different folders for each language.
 Contains both an interpreter and a compiler, so long as you accept that Rust is a valid compiler backend.
 (The interpreter is currently out of sync with the compiler, but again that'll be fixed soon).
 See below for an example of how you might run an L1 program to compute the sum of all numbers
-between 1 and 1 billion.
+between 1 and 1 billion (storing the result in `l2`).
 
 ```rust
-// define the store -- a mapping from locations to value references
-// stricly speaking it should only allow intrefs in L1.
-// L1 has no way to create new locations,
-// so it can only run with what we give it here.
-let mut store = LinearStore {
-    store: vec![Int(10000000000), Int(0)],
-};
-
-// Manually define locations. The argument is the index in the store.
-// these variables are accessed from within the L1 code, so names matter.
-let l1 = new_loc(0);
+// Manually define locations (L1 requires all locations are initialised before execution)
+// These variables are accessed from within the L1 code, so names matter.
+let l1 = new_loc(10000000000);
 let l2 = new_loc(1);
 
 // Converts the L1 code into the rust representation, ready for execution.  
@@ -35,8 +27,8 @@ let program = L1!(
 );
 
 // run the program to completion, and print the "results"
-program.step(&mut store);
-println!("the final state of the store is: {:?}",  store);
+program.step();
+println!("the final state is: {}, {}", l1, l2);
 ``` 
 
 Due to the way programs are represented as types*, rustc is able to heavily optimise L1 programs 
@@ -46,7 +38,7 @@ clock cycle.
 
 \*The type of the above program is
 ```
-Seq<Assign<{integer}, i64>, While<GE<ct::Deref<i64>, {integer}>, Seq<Assign<ct::Add<ct::Deref<i64>, ct::Deref<i64>>, i64>, Assign<ct::Add<ct::Deref<i64>, {integer}>, i64>>>>
+Seq<Assign<'_, {integer}, i64>, While<GE<Deref<'_, i64>, {integer}>, Seq<Assign<'_, Add<Deref<'_, i64>, Deref<'_, i64>>, i64>, Assign<'_, Add<Deref<'_, i64>, {integer}>, i64>>>>
 ```
 In addition to speed, this also uses Rust's type system to verify the correctness of all programs, as `step` is only
 defined for well-typed expressions.

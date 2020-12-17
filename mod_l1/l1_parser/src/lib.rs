@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::parse::{Parse, ParseStream, Parser};
+use syn::parse::{Parse, ParseStream};
 use syn::{parenthesized, parse_macro_input, token, Error, Ident, LitBool, LitInt, Result, Token};
 
 // this import doesn't actually do anything, but it silences a false positive error in CLion
@@ -43,7 +43,7 @@ impl Expression {
 
             // todo syn custom keywords
             let then: Ident = input.parse()?;
-            if then.to_string() != "then" {
+            if then != "then" {
                 return Err(Error::new(then.span(), "Expected 'then'"));
             };
 
@@ -146,33 +146,30 @@ impl Expression {
 
 impl Parse for Expression {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Expression::partial_parse(
+        Ok(Self::partial_parse(
             input,
-            Some(Expression::parse_primary(input)?),
+            Some(Self::parse_primary(input)?),
             0,
         )?)
     }
 }
 
+/// converts an expression (in our internal representation) back into a token stream
 fn to_token_stream(e: Expression) -> quote::__private::TokenStream {
     match e {
-        Expression::Int(e) => {
-            let ei: i64 = e.base10_parse().unwrap();
-            println!("oh by the way e is {}", ei);
-            return quote! {#e}
-        },
+        Expression::Int(e) => quote! {#e},
         Expression::Bool(b) => quote! {#b},
         Expression::Add(e1, e2) => {
             let (ts1, ts2) = (to_token_stream(*e1), to_token_stream(*e2));
-            quote! {Add {e1: #ts1, e2: #ts2}}
+            quote! {mod_l1::l1_compiler::Add {e1: #ts1, e2: #ts2}}
         }
         Expression::GE(e1, e2) => {
             let (ts1, ts2) = (to_token_stream(*e1), to_token_stream(*e2));
-            quote! {GE {e1: #ts1, e2: #ts2}}
+            quote! {mod_l1::l1_compiler::GE {e1: #ts1, e2: #ts2}}
         }
         Expression::Seq(e1, e2) => {
             let (ts1, ts2) = (to_token_stream(*e1), to_token_stream(*e2));
-            quote! {Seq {e1: #ts1, e2: #ts2}}
+            quote! {mod_l1::l1_compiler::Seq {e1: #ts1, e2: #ts2}}
         }
         Expression::If(e1, e2, e3) => {
             let (ts1, ts2, ts3) = (
@@ -180,19 +177,19 @@ fn to_token_stream(e: Expression) -> quote::__private::TokenStream {
                 to_token_stream(*e2),
                 to_token_stream(*e3),
             );
-            quote! {If {e1: #ts1, e2: #ts2, e3: #ts3}}
+            quote! {mod_l1::l1_compiler::If {e1: #ts1, e2: #ts2, e3: #ts3}}
         }
         Expression::Deref(l) => {
-            quote! {Deref {l: &#l}}
+            quote! {mod_l1::l1_compiler::Deref {l: &#l}}
         }
         Expression::Assign(l, e) => {
             let ts = to_token_stream(*e);
-            quote! {Assign {l: &#l, e1: #ts}}
+            quote! {mod_l1::l1_compiler::Assign {l: &#l, e1: #ts}}
         }
         Expression::Skip => quote! {Skip {}},
         Expression::While(e1, e2) => {
             let (ts1, ts2) = (to_token_stream(*e1), to_token_stream(*e2));
-            quote! {While {e1: #ts1, e2: #ts2}}
+            quote! {mod_l1::l1_compiler::While {e1: #ts1, e2: #ts2}}
         }
     }
 }
@@ -210,7 +207,6 @@ pub fn L1(tokens: TokenStream) -> TokenStream {
     let expanded = to_token_stream(input);
     expanded.into()
 }
-
 
 #[cfg(test)]
 mod tests {

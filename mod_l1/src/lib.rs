@@ -1,5 +1,6 @@
 mod compiler;
 mod interpreter;
+extern crate self as mod_l1;
 
 extern crate l1_parser;
 

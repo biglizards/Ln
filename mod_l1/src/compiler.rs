@@ -9,22 +9,22 @@ pub mod l1_compiler {
     // UnsafeCell is used because it allows the compiler to fully optimise the code
     // I'm not sure why Cell is so slow; this is basically how Cell is implemented anyway.
     #[derive(Debug)]
-    pub struct Location {
+    pub(crate) struct Location {
         data: UnsafeCell<i64>,
     }
     impl Location {
-        fn get(&self) -> i64 {
+        pub(crate) fn get(&self) -> i64 {
             // SAFETY: no-one else is accessing this location, because Location is not sync
             unsafe { *self.data.get() }
         }
-        fn set(&self, v: i64) {
+        pub(crate) fn set(&self, v: i64) {
             // SAFETY: no-one else is accessing this location, because Location is not sync
             // SAFETY: you can't take a reference to the value, so nothing is invalidated.
             unsafe {
                 *self.data.get() = v;
             }
         }
-        fn from(v: i64) -> Location {
+        pub(crate) fn from(v: i64) -> Location {
             Location {
                 data: UnsafeCell::from(v),
             }
@@ -39,7 +39,7 @@ pub mod l1_compiler {
     // we say a type steps to T if it has a function that returns a T
     // eg, Add {e1: 1, e2: 1} steps to i64
     // note that we use big step semantics (rather than small step) in many places for performance
-    trait Step<T> {
+    pub(crate) trait Step<T> {
         fn step(&self) -> T;
     }
 
@@ -56,9 +56,9 @@ pub mod l1_compiler {
     // it makes it easier to represent programs as types
     // you can see the semantics are equivalent (in both cases, first e1 is evaluated, then e2)
     #[derive(Debug)]
-    pub struct Add<E1, E2> {
-        e1: E1,
-        e2: E2,
+    pub(crate) struct Add<E1, E2> {
+        pub(crate) e1: E1,
+        pub(crate) e2: E2,
     }
     // because of the type bounds, only well typed Adds (ones in which both expressions are ints)
     // can step to int. Because of this, if an Add is not typed, any expressions which use it
@@ -70,9 +70,9 @@ pub mod l1_compiler {
     }
 
     #[derive(Debug)]
-    struct GE<E1, E2> {
-        e1: E1,
-        e2: E2,
+    pub(crate) struct GE<E1, E2> {
+        pub(crate) e1: E1,
+        pub(crate) e2: E2,
     }
     impl<E1: Step<i64>, E2: Step<i64>> Step<bool> for GE<E1, E2> {
         fn step(&self) -> bool {
@@ -83,8 +83,8 @@ pub mod l1_compiler {
     // Since the program type checks, we have progress, and since we have progress,
     // we know deref won't get stuck, so it must be safe to deref this location.
     #[derive(Debug)]
-    struct Deref<'a> {
-        l: &'a Location,
+    pub(crate) struct Deref<'a> {
+        pub(crate) l: &'a Location,
     }
     impl<'a> Step<i64> for Deref<'a> {
         fn step(&self) -> i64 {
@@ -95,9 +95,9 @@ pub mod l1_compiler {
     // another argument for variety: all locations which exist are in the domain of the store
     // because we defined the store as the set of all defined locations.
     #[derive(Debug)]
-    struct Assign<'a, E1> {
-        l: &'a Location,
-        e1: E1,
+    pub(crate) struct Assign<'a, E1> {
+        pub(crate) l: &'a Location,
+        pub(crate) e1: E1,
     }
     impl<'a, E1: Step<i64>> Step<Skip> for Assign<'a, E1> {
         fn step(&self) -> Skip {
@@ -111,9 +111,9 @@ pub mod l1_compiler {
     //   (because of the type binding `E1: Step<Skip>`)
     // then evaluate the right expression
     #[derive(Debug)]
-    struct Seq<E1, E2> {
-        e1: E1,
-        e2: E2,
+    pub(crate) struct Seq<E1, E2> {
+        pub(crate) e1: E1,
+        pub(crate) e2: E2,
     }
     impl<T, E1: Step<Skip>, E2: Step<T>> Step<T> for Seq<E1, E2> {
         fn step(&self) -> T {
@@ -126,10 +126,10 @@ pub mod l1_compiler {
     // then return the result of the correct sub-expression.
     // the typing rules require both subexpressions to be of the same type
     #[derive(Debug)]
-    struct If<E1, E2, E3> {
-        e1: E1,
-        e2: E2,
-        e3: E3,
+    pub(crate) struct If<E1, E2, E3> {
+        pub(crate) e1: E1,
+        pub(crate) e2: E2,
+        pub(crate) e3: E3,
     }
     impl<T, E1: Step<bool>, E2: Step<T>, E3: Step<T>> Step<T> for If<E1, E2, E3> {
         fn step(&self) -> T {
@@ -144,14 +144,14 @@ pub mod l1_compiler {
     // Skip implicitly steps to self because it is Copy
     // but can make no other progress
     #[derive(Clone, Copy, Debug)]
-    struct Skip {}
+    pub(crate) struct Skip {}
 
     // While just does an actual loop instead of the recursive definition,
     // but the two are clearly the same
     #[derive(Debug)]
-    struct While<E1, E2> {
-        e1: E1,
-        e2: E2,
+    pub(crate) struct While<E1, E2> {
+        pub(crate) e1: E1,
+        pub(crate) e2: E2,
     }
     impl<E1: Step<bool>, E2: Step<Skip>> Step<Skip> for While<E1, E2> {
         fn step(&self) -> Skip {
@@ -162,7 +162,7 @@ pub mod l1_compiler {
         }
     }
 
-    pub fn test(total: i64) {
+    pub fn test_sum(total: i64) -> i64 {
         let l1 = Location::from(total);
         let l2 = Location::from(0);
 
@@ -173,6 +173,7 @@ pub mod l1_compiler {
                 l1 := !l1 + -1
         );
 
-        println!("{:?}, {}, {}", main.step(), l1, l2);
+        main.step();
+        return l2.get();
     }
 }

@@ -1,10 +1,68 @@
+#[allow(dead_code)]
 pub mod l1_interpreter {
     use self::Expression::*;
-    use crate::Value::*;
-    use crate::{Location, Store, Value};
+    use std::collections::HashMap;
+    use self::Value::{Int, Bool};
 
     #[derive(Debug, Clone)]
-    enum Operation {
+    pub(crate) enum Value {
+        Bool(bool),
+        Int(i64),
+    }
+
+    #[derive(Debug, Hash, Eq, PartialEq, Clone, Copy)]
+    pub(crate) struct Location {
+        pub(crate) id: i32,
+    }
+
+    pub(crate) trait Store {
+        fn put(&mut self, k: Location, v: i64);
+        fn get(&self, k: &Location) -> Option<&i64>;
+        fn contains_key(&self, k: &Location) -> bool;
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct HashStore {
+        pub(crate) map: HashMap<Location, i64>,
+    }
+
+    impl Store for HashStore {
+        fn put(&mut self, k: Location, v: i64) {
+            self.map.insert(k, v);
+        }
+
+        fn get(&self, k: &Location) -> Option<&i64> {
+            self.map.get(k)
+        }
+
+        fn contains_key(&self, k: &Location) -> bool {
+            self.map.contains_key(k)
+        }
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct LinearStore {
+        pub(crate) store: Vec<i64>,
+    }
+
+    impl Store for LinearStore {
+        fn put(&mut self, k: Location, v: i64) {
+            // panics if out of bounds
+            // also this can only store 2**32 values, which is just awful
+            self.store[k.id as usize] = v;
+        }
+
+        fn get(&self, k: &Location) -> Option<&i64> {
+            self.store.get(k.id as usize)
+        }
+
+        fn contains_key(&self, k: &Location) -> bool {
+            self.store.len() > k.id as usize
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub(crate) enum Operation {
         ADD,
         GTE,
     }
@@ -31,7 +89,7 @@ pub mod l1_interpreter {
     }
 
     #[derive(Debug, Clone)]
-    enum Expression {
+    pub(crate) enum Expression {
         VALUE(Value),
         OP(Box<Expression>, Operation, Box<Expression>),
         _IF {
@@ -49,9 +107,9 @@ pub mod l1_interpreter {
         },
     }
 
-    fn step<S: Store>(e: Expression, s: &mut S) -> Option<Expression> {
+    pub(crate) fn step<S: Store>(e: Expression, s: &mut S) -> Option<Expression> {
         Some(match e {
-            VALUE(_) => e,
+            VALUE(_) => return None, //values don't reduce
             OP(e1, op, e2) => match (&*e1, &*e2) {
                 (VALUE(v), VALUE(v2)) => VALUE(op.perform(v, v2)?),
                 (VALUE(_), _) => OP(e1, op, Box::from(step(*e2, s)?)),
@@ -80,7 +138,7 @@ pub mod l1_interpreter {
                 };
 
                 match *e {
-                    VALUE(v) => {
+                    VALUE(Int(v)) => {
                         s.put(loc, v);
                         SKIP
                     }
@@ -89,7 +147,7 @@ pub mod l1_interpreter {
             }
             DEREF(l) => match s.get(&l) {
                 None => return None,
-                Some(v) => VALUE(v.clone()),
+                Some(v) => VALUE(Int(*v)),
             },
             SEQ(e1, e2) => match (&*e1, &*e2) {
                 (SKIP, _) => step(*e2, s)?,

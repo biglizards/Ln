@@ -1,6 +1,8 @@
 extern crate mod_l1;
+// extern crate mod_l2;
 
 use mod_l1::l1_compiler;
+
 use std::env;
 use std::time::Instant;
 
@@ -9,7 +11,7 @@ fn main() {
     let s: String = "1000000000".into();
 
     let now = Instant::now();
-    l1_compiler::test(
+    l1_compiler::test_sum(
         (&args.get(1).unwrap_or(&s))
             .parse()
             .expect("that's not an int, fool"),

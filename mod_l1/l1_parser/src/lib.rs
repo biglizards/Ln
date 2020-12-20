@@ -186,13 +186,64 @@ fn to_token_stream(e: Expression) -> quote::__private::TokenStream {
             let ts = to_token_stream(*e);
             quote! {mod_l1::l1_compiler::Assign {l: &#l, e1: #ts}}
         }
-        Expression::Skip => quote! {Skip {}},
+        Expression::Skip => quote! {mod_l1::l1_compiler::Skip {}},
         Expression::While(e1, e2) => {
             let (ts1, ts2) = (to_token_stream(*e1), to_token_stream(*e2));
             quote! {mod_l1::l1_compiler::While {e1: #ts1, e2: #ts2}}
         }
     }
 }
+
+/// converts an expression (in our internal representation) back into a token stream
+/// for the interpreter module
+fn to_interpreted_token_stream(e: Expression) -> quote::__private::TokenStream {
+    match e {
+        Expression::Int(e) => quote! {mod_l1::l1_interpreter::Expression::VALUE(mod_l1::l1_interpreter::Value::Int(#e))},
+        Expression::Bool(b) => quote! {mod_l1::l1_interpreter::Expression::VALUE(mod_l1::l1_interpreter::Value::Bool(#b))},
+        Expression::Add(e1, e2) => {
+            let (ts1, ts2) = (to_interpreted_token_stream(*e1), to_interpreted_token_stream(*e2));
+            quote! {mod_l1::l1_interpreter::Expression::OP(Box::from(#ts1), mod_l1::l1_interpreter::Operation::ADD, Box::from(#ts2))}
+        }
+        Expression::GE(e1, e2) => {
+            let (ts1, ts2) = (to_interpreted_token_stream(*e1), to_interpreted_token_stream(*e2));
+            quote! {mod_l1::l1_interpreter::Expression::OP(Box::from(#ts1), mod_l1::l1_interpreter::Operation::GTE, Box::from(#ts2))}
+        }
+        Expression::Seq(e1, e2) => {
+            let (ts1, ts2) = (to_interpreted_token_stream(*e1), to_interpreted_token_stream(*e2));
+            quote! {mod_l1::l1_interpreter::Expression::SEQ(Box::from(#ts1), Box::from(#ts2))}
+        }
+        Expression::If(e1, e2, e3) => {
+            let (ts1, ts2, ts3) = (
+                to_interpreted_token_stream(*e1),
+                to_interpreted_token_stream(*e2),
+                to_interpreted_token_stream(*e3),
+            );
+            quote! {mod_l1::l1_interpreter::Expression::IF {
+                    cond: Box::from(#ts1),
+                    then: Box::from(#ts2),
+                    else_: Box::from(#ts3)
+                }
+            }
+        }
+        Expression::Deref(l) => {
+            quote! {mod_l1::l1_interpreter::Expression::DEREF(#l)}
+        }
+        Expression::Assign(l, e) => {
+            let ts = to_interpreted_token_stream(*e);
+            quote! {mod_l1::l1_interpreter::Expression::ASSIGN(#l, Box::from(#ts))}
+        }
+        Expression::Skip => quote! {mod_l1::l1_interpreter::Expression::SKIP {}},
+        Expression::While(e1, e2) => {
+            let (ts1, ts2) = (to_interpreted_token_stream(*e1), to_interpreted_token_stream(*e2));
+            quote! {mod_l1::l1_interpreter::Expression::WHILE {
+                    cond: Box::from(#ts1),
+                    do_: Box::from(#ts2),
+                }
+            }
+        }
+    }
+}
+
 
 #[allow(non_snake_case)]
 #[proc_macro]
@@ -207,6 +258,21 @@ pub fn L1(tokens: TokenStream) -> TokenStream {
     let expanded = to_token_stream(input);
     expanded.into()
 }
+
+#[allow(non_snake_case)]
+#[proc_macro]
+pub fn L1_interpreter(tokens: TokenStream) -> TokenStream {
+    // this macro is the opposite of hygienic -- it actively requires that a load of types
+    // are in scope. Not ideal, but hey, it's for internal use only.
+
+    // parse input into one big expression tree
+    let input = parse_macro_input!(tokens as Expression);
+
+    // convert that expression tree into rust code
+    let expanded = to_interpreted_token_stream(input);
+    expanded.into()
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -1,0 +1,18 @@
+[package]
+name = "l2_parser"
+version = "0.0.1"
+authors = ["biglizards"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.7"
+
+[dependencies.syn]
+version = "1.0.53"
+default-features = true
+features = ["full", "extra-traits"]

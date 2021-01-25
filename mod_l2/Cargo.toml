@@ -1,14 +1,10 @@
 [package]
-name = "semantics"
-version = "0.1.0"
+name = "mod_l2"
+version = "0.0.1"
 authors = ["biglizards"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mod_l1 = { path = "mod_l1", version = "0.1.0" }
-mod_l2 = { path = "mod_l2", version = "0.0.1" }
-
-[profile.release]
-#lto = "fat"
+l2_parser = { path = "l2_parser", version = "0.0" }

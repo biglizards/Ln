@@ -1,5 +1,5 @@
 extern crate mod_l1;
-// extern crate mod_l2;
+extern crate mod_l2;
 
 use mod_l1::l1_compiler;
 

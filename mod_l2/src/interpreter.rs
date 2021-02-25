@@ -18,7 +18,6 @@ pub mod l2_interpreter {
         pub(crate) id: i32,
     }
 
-
     pub(crate) trait Store: Clone {
         fn put(&mut self, k: Location, v: i64);
         fn put_var(&mut self, k: Variable, v: i64);
@@ -108,7 +107,7 @@ pub mod l2_interpreter {
         },
         FUNCTION(Variable, Box<Expression>),
         APPLICATION(Box<Expression>, Box<Expression>),
-        VARIABLE(Variable)
+        VARIABLE(Variable),
     }
 
     pub(crate) fn step<S: Store>(e: Expression, s: &mut S) -> Option<Expression> {
@@ -162,17 +161,10 @@ pub mod l2_interpreter {
                 then: Box::new(SEQ(do_.clone(), Box::new(WHILE { cond, do_ }))),
                 else_: Box::new(Expression::SKIP),
             },
-            APPLICATION(e1, e2) => {
-                match *e1 {
-                    FUNCTION(var, e) => {
-                        *sub(var, *e, &*e2)
-                    }
-                    _ => APPLICATION(
-                        Box::from(step(*e1, s)?),
-                        e2
-                    )
-                }
-            }
+            APPLICATION(e1, e2) => match *e1 {
+                FUNCTION(var, e) => *sub(var, *e, &*e2),
+                _ => APPLICATION(Box::from(step(*e1, s)?), e2),
+            },
 
             _ => return None,
         })
@@ -180,11 +172,22 @@ pub mod l2_interpreter {
 
     fn sub(var: Variable, e: Expression, new_expression: &Expression) -> Box<Expression> {
         Box::from(match e {
-            OP(e1, op, e2) => OP(sub(var, *e1, new_expression), op, sub(var, *e2, new_expression)),
-            _IF { cond, then, else_ } => _IF { cond: sub(var, *cond, new_expression), then: sub(var, *then, new_expression), else_: sub(var, *else_, new_expression) },
+            OP(e1, op, e2) => OP(
+                sub(var, *e1, new_expression),
+                op,
+                sub(var, *e2, new_expression),
+            ),
+            _IF { cond, then, else_ } => _IF {
+                cond: sub(var, *cond, new_expression),
+                then: sub(var, *then, new_expression),
+                else_: sub(var, *else_, new_expression),
+            },
             ASSIGN(l, e) => ASSIGN(l, sub(var, *e, new_expression)),
             SEQ(e1, e2) => SEQ(sub(var, *e1, new_expression), sub(var, *e2, new_expression)),
-            WHILE { cond, do_ } => WHILE { cond: sub(var, *cond, new_expression), do_: sub(var, *do_, new_expression) },
+            WHILE { cond, do_ } => WHILE {
+                cond: sub(var, *cond, new_expression),
+                do_: sub(var, *do_, new_expression),
+            },
             FUNCTION(var_2, e) => {
                 if var == var_2 {
                     FUNCTION(var_2, e)
@@ -192,15 +195,17 @@ pub mod l2_interpreter {
                     FUNCTION(var_2, sub(var, *e, new_expression))
                 }
             }
-            APPLICATION(e1, e2) => APPLICATION(sub(var, *e1, new_expression), sub(var, *e2, new_expression)),
+            APPLICATION(e1, e2) => {
+                APPLICATION(sub(var, *e1, new_expression), sub(var, *e2, new_expression))
+            }
             VARIABLE(v) => {
                 if v == var {
                     new_expression.clone()
                 } else {
                     VARIABLE(v)
                 }
-            },
-            _ => e
+            }
+            _ => e,
         })
     }
 }

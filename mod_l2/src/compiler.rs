@@ -2,7 +2,7 @@ pub mod l2_compiler {
     use crate::L2;
     use std::cell::UnsafeCell;
     use std::fmt;
-    use std::fmt::{Display, Formatter, Debug};
+    use std::fmt::{Debug, Display, Formatter};
     use std::marker::PhantomData;
     use std::rc::Rc;
 
@@ -12,13 +12,13 @@ pub mod l2_compiler {
     // I'm not sure why Cell is so slow; this is basically how Cell is implemented anyway.
     #[derive(Debug, Clone, Copy)]
     pub(crate) struct TypedLocation<T> {
-        ptr: *mut T
+        ptr: *mut T,
     }
     impl<T> TypedLocation<T> {
         pub(crate) fn from(v: T) -> TypedLocation<T> {
             // this is not a very good solution because it leaks memory but w/e
             TypedLocation {
-                ptr: Box::leak(Box::from(UnsafeCell::new(v))).get()
+                ptr: Box::leak(Box::from(UnsafeCell::new(v))).get(),
             }
         }
     }
@@ -43,7 +43,6 @@ pub mod l2_compiler {
     }
 
     pub(crate) type Location = TypedLocation<i64>;
-
 
     // we say a type steps to T if it has a function that returns a T
     // eg, Add {e1: 1, e2: 1} steps to i64
@@ -70,6 +69,11 @@ pub mod l2_compiler {
     }
     impl Step<()> for () {
         fn step(&self) -> () {
+            *self
+        }
+    }
+    impl Step<bool> for bool {
+        fn step(&self) -> bool {
             *self
         }
     }
@@ -174,7 +178,6 @@ pub mod l2_compiler {
         }
     }
 
-
     // While just does an actual loop instead of the recursive definition,
     // but the two are clearly the same
     #[derive(Debug, Clone)]
@@ -199,22 +202,37 @@ pub mod l2_compiler {
     pub(crate) struct Apply<E1, E2, In> {
         e1: E1,
         e2: E2,
-        phantom: PhantomData<In>
+        phantom: PhantomData<In>,
     }
     impl<T, E1, E2, In> Step<T> for Apply<E1, E2, In>
-    where E1: Step<Rc<dyn Fn(In) -> T>>, E2: Step<In>
+    where
+        E1: Step<Rc<dyn Fn(In) -> T>>,
+        E2: Step<In>,
     {
         fn step(&self) -> T {
             return (*self.e1.step())(self.e2.step());
         }
     }
 
-
     impl<In, T> Step<Rc<dyn Fn(In) -> T>> for Rc<dyn Fn(In) -> T> {
         fn step(&self) -> Rc<dyn Fn(In) -> T> {
             self.clone()
         }
     }
+
+    // optimisation: using direct function pointers instead of RC
+    // obviously this can only be used when we can guarantee the pointer doesn't go out
+    // of the scope it was defined in. this is usually the case, but hard to check in general,
+    // so this optimisation is only used in the few cases where i can prove soundness.
+    impl<T, E2, In> Step<T> for Apply<fn(In) -> T, E2, In>
+        where E2: Step<In>
+    {
+        fn step(&self) -> T {
+            return (self.e1)(self.e2.step());
+        }
+    }
+
+
 
     pub fn test_sum(total: i64) -> i64 {
         let l1 = Location::from(total);
@@ -255,7 +273,7 @@ pub mod l2_compiler {
             ((fn x: int->int => x arg) (fn x:int => x + 2))
         };
 
-        return main.step()
+        return main.step();
     }
 
     pub fn test_higher_order_2(arg: i64) -> i64 {
@@ -271,7 +289,7 @@ pub mod l2_compiler {
         // function which takes and returns a function
         // aka a decorator
         let main = L2! {
-            (((fn x: (int->int) => fn y: int => (x y) + 2) fn x: int => x + 4) arg)
+            (((fn x: (int->int) => fn y: int => (x y) + 2) (fn x: int => x + 4)) arg)
         };
 
         return main.step();
@@ -301,8 +319,89 @@ pub mod l2_compiler {
 
         (L2! {
             (fn x: unit => (l:=1); x) (l:=2)
-        }).step();
+        })
+        .step();
 
         assert_eq!(l.get(), 1)
+    }
+
+    // pub fn test_let_bindings_1(arg: i64) {
+    //     // should fail
+    //     let main = L2! {
+    //         let var x: int = arg in (
+    //             (let var y: int = 2 in (
+    //                 y+x
+    //             )) +
+    //             (let var z: int = 3 in (
+    //                 y+z+x
+    //             ))
+    //         )
+    //     };
+    // }
+
+    pub fn test_let_bindings_2(arg: i64) -> i64 {
+        let main = L2! {
+            let val x: int = arg in
+                let val x: int = x+1 in
+                    x
+                end + x
+            end
+        };
+        main.step()
+    }
+
+    pub fn test_let_bindings_3(arg: i64) -> i64 {
+        // this function does (arg*4)+1
+        let main = L2! {
+            let val x: int = arg in
+                (fn x: int =>
+                    let val x: int = x+1 in
+                        x+arg
+                    end + x
+                ) x + (let val x: int = x in x end)
+            end
+        };
+        main.step()
+    }
+
+    pub fn test_rec_fn(arg: i64) -> i64 {
+        // takes the sum of the numbers up to arg
+        // but does so without directly applying the recursive function
+        // this is to make sure any optimisations don't break the assumption that
+        // x is defined inside of itself, and it captures scope from outside
+
+        let main = L2! {
+            let val a: int = arg in (
+                let val rec x: int->int = (
+                    fn y: int => if 0 >= y then a else y + ((
+                        fn b: bool => if b then x else (fn y: int => y)
+                    ) true) (y + -1)
+                ) in x(arg) end)
+            end
+        };
+        main.step()
+    }
+
+
+    pub fn test_rec_fn_2(arg: i64) -> i64 {
+        // similar to test_rec_fn, but now we have a function in the outer scope
+
+        let main = L2! {
+            let val add: int->int->int = (fn x: int => fn y: int => x+y) in
+                (let val rec x: int->int = (
+                    fn y: int => if 0 >= y then 0 else add y (x (add y -1))
+                ) in x(arg) end)
+            end
+        };
+        main.step()
+    }
+
+    pub fn test_basic_rec_fn(arg: i64) -> i64 {
+        let main = L2! {
+            let val rec sum: int->int = (
+                fn x: int => if 0>=x then 0 else x + sum (x+-1)
+            ) in sum arg end
+        };
+        main.step()
     }
 }

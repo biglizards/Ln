@@ -9,24 +9,23 @@ extern crate l2_parser;
 pub use compiler::l2_compiler;
 pub use interpreter::l2_interpreter;
 
-pub use l2_parser::L2;
 pub use l2_parser::L2_interpreter;
-
+pub use l2_parser::L2;
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
-    use l2_parser::L2_interpreter;
-    use crate::l2_interpreter::{Location, LinearStore, Store, step};
     use crate::interpreter::l2_interpreter::{Expression, Variable};
-    use crate::l2_interpreter::Expression::VALUE;
     use crate::l2_compiler::Step;
+    use crate::l2_interpreter::Expression::VALUE;
+    use crate::l2_interpreter::{step, LinearStore, Location, Store};
+    use l2_parser::L2_interpreter;
+    use std::time::Instant;
 
     /// fully evaluate a program in a given store
     /// returns the store if the program evaluates fine (ie it evaluates to a value)
     /// returns Err if it gets stuck (ie the program is not well typed)
     fn evaluate<S: Store>(mut main: Expression, mut store: S) -> Result<S, ()> {
-        while let Some(e) = step(main, &mut store)  {
+        while let Some(e) = step(main, &mut store) {
             main = e;
             if let Expression::SKIP = main {
                 return Ok(store);
@@ -35,16 +34,18 @@ mod tests {
                 return Ok(store);
             }
         }
-        return Err(())
+        return Err(());
     }
-
 
     #[test]
     fn interpreter_sum_test() {
         let l1 = Location { id: 0 };
         let l2 = Location { id: 1 };
 
-        let store = LinearStore { store: vec![10000, 0], var_store: vec![] };
+        let store = LinearStore {
+            store: vec![10000, 0],
+            var_store: vec![],
+        };
 
         let main = L2_interpreter!(
             l2 := 0;
@@ -63,7 +64,10 @@ mod tests {
         let l1 = Location { id: 0 };
         let x = Variable { id: 0 };
 
-        let store = LinearStore { store: vec![10000, 0], var_store: vec![0] };
+        let store = LinearStore {
+            store: vec![10000, 0],
+            var_store: vec![0],
+        };
 
         let main = L2_interpreter!(
             l1 := ((fn x: int => x + 3 ) 4)
@@ -81,7 +85,10 @@ mod tests {
         let x = Variable { id: 0 };
         let y = Variable { id: 1 };
 
-        let store = LinearStore { store: vec![10000, 0], var_store: vec![] };
+        let store = LinearStore {
+            store: vec![10000, 0],
+            var_store: vec![],
+        };
 
         let main = L2_interpreter!(
             l1 := ((fn x: int->int => x 3) (fn y: int => y + 4))
@@ -99,7 +106,10 @@ mod tests {
         let x = Variable { id: 0 };
         let y = Variable { id: 1 };
 
-        let store = LinearStore { store: vec![10000, 0], var_store: vec![] };
+        let store = LinearStore {
+            store: vec![10000, 0],
+            var_store: vec![],
+        };
 
         let main = L2_interpreter!(
             l1 := (((fn x: int => fn y: int => x + y) 3) 4)
@@ -117,10 +127,13 @@ mod tests {
         let x = Variable { id: 0 };
         let y = Variable { id: 1 };
 
-        let store = LinearStore { store: vec![10000, 0], var_store: vec![] };
+        let store = LinearStore {
+            store: vec![10000, 0],
+            var_store: vec![],
+        };
 
         let main = L2_interpreter!(
-            l1 := (((fn x: int->int => fn y: int => (x y) + 2) fn x: int => x + 4) 1)
+            l1 := (((fn x: int->int => fn y: int => (x y) + 2) (fn x: int => x + 4)) 1)
         );
 
         // implicitly asserts that the program did not get stuck
@@ -131,7 +144,10 @@ mod tests {
     #[test]
     fn interpreter_silly_test() {
         let l1 = Location { id: 0 };
-        let store = LinearStore { store: vec![123], var_store: vec![] };
+        let store = LinearStore {
+            store: vec![123],
+            var_store: vec![],
+        };
 
         let main = L2_interpreter!(
             l1 := false
@@ -188,6 +204,57 @@ mod tests {
         assert_eq!(sum, 8);
     }
 
+    #[test]
+    fn compiler_let_binding_test_1() {
+        let sum = crate::l2_compiler::test_let_bindings_2(3);
+        assert_eq!(sum, 7);
+    }
+
+    #[test]
+    fn compiler_let_binding_test_2() {
+        let sum = crate::l2_compiler::test_let_bindings_3(3);
+        assert_eq!(sum, 13);
+    }
+
+    // #[test]
+    // fn compiler_let_rec_optimisation_test() {
+    // }
+
+    // #[test]
+    // fn test_4() {
+    //     let mut f: UnsafeCell<Box<dyn Fn(i64)->i64>> = UnsafeCell::new(Box::from(|x: i64| {0}));
+    //
+    //     print!("what\n");
+    //
+    //     // let y = {&mut g as *mut Fn()};
+    //     let tmp_func = |x| {
+    //         if x == 0 {
+    //             1
+    //         } else {(unsafe {*f.get()})(x-1) }
+    //     };
+    //
+    //     unsafe {*(f.get()) = Box::from(tmp_func);}
+    //
+    //     println!("{}", (unsafe {**f.get()})(1));
+    // }
+
+    #[test]
+    fn compiler_basic_recursive_function() {
+        let sum = crate::l2_compiler::test_basic_rec_fn(5);
+        assert_eq!(sum, 15)
+    }
+
+    #[test]
+    fn compiler_recursive_function() {
+        let sum = crate::l2_compiler::test_rec_fn(5);
+        assert_eq!(sum, 20)
+    }
+
+    #[test]
+    fn compiler_recursive_function2() {
+        let sum = crate::l2_compiler::test_rec_fn_2(5);
+        assert_eq!(sum, 15)
+    }
 
     /// make sure it compiles the loop to an O(1) function.
     #[test]

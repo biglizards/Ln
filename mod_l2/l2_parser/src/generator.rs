@@ -270,7 +270,7 @@ fn appears_only_on_lhs_of_apply(e: &Expression, target: &str, is_on_lhs_of_apply
             appears_only_on_lhs_of_apply(e1, target, true)
                 && appears_only_on_lhs_of_apply(e2, target, false)
         }
-        Expression::Variable(v) => is_on_lhs_of_apply || v.to_string() != *target,
+        Expression::Variable(v) => is_on_lhs_of_apply || v != target,
 
         Expression::Int(_) | Expression::Bool(_) | Expression::Skip | Expression::Deref(_) => true,
 

@@ -174,6 +174,6 @@ pub mod l1_compiler {
         );
 
         main.step();
-        return l2.get();
+        l2.get()
     }
 }

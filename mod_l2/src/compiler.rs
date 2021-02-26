@@ -78,7 +78,6 @@ pub mod l2_compiler {
         }
     }
 
-
     // unlike the specification, we define Add and GE independently of OP
     // it makes it easier to represent programs as types
     // you can see the semantics are equivalent (in both cases, first e1 is evaluated, then e2)
@@ -225,14 +224,13 @@ pub mod l2_compiler {
     // of the scope it was defined in. this is usually the case, but hard to check in general,
     // so this optimisation is only used in the few cases where i can prove soundness.
     impl<T, E2, In> Step<T> for Apply<fn(In) -> T, E2, In>
-        where E2: Step<In>
+    where
+        E2: Step<In>,
     {
         fn step(&self) -> T {
             return (self.e1)(self.e2.step());
         }
     }
-
-
 
     pub fn test_sum(total: i64) -> i64 {
         let l1 = Location::from(total);
@@ -381,7 +379,6 @@ pub mod l2_compiler {
         };
         main.step()
     }
-
 
     pub fn test_rec_fn_2(arg: i64) -> i64 {
         // similar to test_rec_fn, but now we have a function in the outer scope

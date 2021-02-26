@@ -3,7 +3,7 @@
 A Rust implementation of the L1 language, as specified in 
 [this course](https://www.cl.cam.ac.uk/teaching/2021/Semantics/).
  
-Currently this implements both L1 fully, and has partial support for L2 (limited to non-recursive functions).
+Currently this implements both L1 and L2 fully.
 
 Contains both an interpreter and a compiler, so long as you accept that Rust is a valid compiler backend.
 See below for an example of how you might run an L1 program to compute the sum of all numbers

@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 mod_l1 = { path = "mod_l1", version = "0.1.0" }
-mod_l2 = { path = "mod_l2", version = "0.0.1" }
+mod_l2 = { path = "mod_l2", version = "0.1.0" }
 
 [profile.release]
 #lto = "fat"

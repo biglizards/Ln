@@ -1,4 +1,4 @@
-# L_n: A compiler for L1 and L2
+# Ln: A compiler for L1 and L2
 
 A Rust implementation of the L* family of languages, as specified in 
 [this course](https://www.cl.cam.ac.uk/teaching/2021/Semantics/).

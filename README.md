@@ -1,11 +1,12 @@
-# L_n: A compiler for L1 and L2 (sort of)
+# L_n: A compiler for L1 and L2
 
-A Rust implementation of the L1 language, as specified in 
+A Rust implementation of the L* family of languages, as specified in 
 [this course](https://www.cl.cam.ac.uk/teaching/2021/Semantics/).
  
-Currently this implements both L1 and L2 fully.
+Currently this implements both L1 and L2 fully, with support for L3 in progress.
 
-Contains both an interpreter and a compiler, so long as you accept that Rust is a valid compiler backend.
+Contains both an interpreter and a compiler, so long as you accept that Rust is a valid compiler backend 
+(otherwise, you would, perhaps more accurately, call this a transpiler).
 See below for an example of how you might run an L1 program to compute the sum of all numbers
 between 1 and 1 billion (storing the result in `l2`).
 

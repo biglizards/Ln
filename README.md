@@ -31,9 +31,26 @@ println!("the final state is: {}, {}", l1, l2);
 Due to the way programs are represented as types*, rustc and LLVM are able to heavily optimise L1 programs: 
 the program above is compiled down to 14 lines of x86 ASM, with no backwards branches.
 
+In addition to speed, this also uses Rust's type system to verify the correctness of all programs, as `step` is only
+defined for well-typed expressions.
+
 \*The type of the above program is
 ```
 Seq<Assign<'_, {integer}>, While<GE<Deref<'_>, {integer}>, Seq<Assign<'_, Add<Deref<'_>, Deref<'_>>>, Assign<'_, Add<Deref<'_>, {integer}>>>>>
 ```
-In addition to speed, this also uses Rust's type system to verify the correctness of all programs, as `step` is only
-defined for well-typed expressions.
+
+
+## L2
+
+L2 primarily adds functions, variables, and let bindings. The sum example above could also have been written using
+recursion:
+
+```rust
+let program = L2!(
+    let val rec sum: int->int = (
+        fn x: int => if 0 >= x then 0 else x + sum (x + -1)
+    ) in (
+        l2 := sum !l1
+    ) end
+)
+```

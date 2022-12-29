@@ -17,5 +17,7 @@ known at compile time) and cannot be stack allocated (since it is returned and t
 
 Recursion and variables allow an arbitrarily large number of function objects to be valid at once.
 
-It feels impossible to avoid the conclusion that, for some functions, large reference counted objects will need
-to be created.
+~~It feels impossible to avoid the conclusion that, for some functions, large reference counted objects will need
+to be created.~~
+
+NOTE FROM FUTURE ME: I wrote the above readme maybe 2 months before I took the compilers course, and they had a neat solution: take all the lambdas, and make them into top-level functions. Then you represent lambdas as a function pointer and a tuple of all unbound variables. If I give this another go at some point (and I'm unlikely to, but not entirely taking it off the table), this would likely yeild both performance improvements and increased expressiveness in terms of operational semantics, at the cost of a more complex macro side.
